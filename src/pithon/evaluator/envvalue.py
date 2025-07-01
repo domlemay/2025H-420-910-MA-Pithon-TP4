@@ -2,8 +2,7 @@
 
 from typing import Union,  Callable
 from dataclasses import dataclass
-from pithon.syntax import ( PiFunctionDef,
-)
+from pithon.syntax import ( PiFunctionDef,)
 from pithon.evaluator.envframe import EnvFrame
 
 PrimitiveFunction = Callable[..., 'EnvValue']
