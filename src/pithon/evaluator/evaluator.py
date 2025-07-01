@@ -6,6 +6,10 @@ from pithon.syntax import (
     PiFunctionDef, PiFunctionCall, PiFor, PiBreak, PiContinue, PiIn, PiReturn, PiClassDef, PiAttribute, PiAttributeAssignment
 )
 from pithon.evaluator.envvalue import EnvValue, VFunctionClosure, VList, VNone, VTuple, VNumber, VBool, VString, VClassDef, VMethodClosure, VObject
+from pithon.evaluator.class_evaluator import (
+    evaluate_class_def, evaluate_attribute, evaluate_attribute_assignment, 
+    instantiate_class, call_method
+)
 
 
 def initial_env() -> EnvFrame:
@@ -135,13 +139,13 @@ def evaluate_stmt(node: PiStatement, env: EnvFrame) -> EnvValue:
         return _evaluate_subscript(node, env)
     
     elif isinstance(node, PiClassDef):
-        return VClassDef(node, env)
+        return evaluate_class_def(node, env)
     
     elif isinstance(node, PiAttribute):
-        return VObject(node, env)
+        return evaluate_attribute(node, env, evaluate_stmt)
     
     elif isinstance(node, PiAttributeAssignment):
-        return VMethodClosure(node, env)
+        return evaluate_attribute_assignment(node, env, evaluate_stmt)
 
     else:
         raise TypeError(f"Type de nœud non supporté : {type(node)}")
@@ -216,28 +220,42 @@ def _evaluate_in(node: PiIn, env: EnvFrame) -> EnvValue:
         raise TypeError("'in' n'est supporté que pour les listes et chaînes.")
 
 def _evaluate_function_call(node: PiFunctionCall, env: EnvFrame) -> EnvValue:
-    """Évalue un appel de fonction (primitive ou définie par l'utilisateur)."""
+    """Évalue un appel de fonction (primitive, définie par l'utilisateur, ou instantiation de classe)."""
     func_val = evaluate_stmt(node.function, env)
     args = [evaluate_stmt(arg, env) for arg in node.args]
+    
     # Fonction primitive
     if callable(func_val):
         return func_val(args)
+    
+    # Instantiation de classe
+    if isinstance(func_val, VClassDef):
+        return instantiate_class(func_val, args, evaluate_stmt)
+    
+    # Appel de méthode liée
+    if isinstance(func_val, VMethodClosure):
+        return call_method(func_val, args, evaluate_stmt)
+    
     # Fonction utilisateur
     if not isinstance(func_val, VFunctionClosure):
         raise TypeError("Tentative d'appel d'un objet non-fonction.")
+    
     funcdef = func_val.funcdef
     closure_env = func_val.closure_env
     call_env = EnvFrame(parent=closure_env)
+    
     for i, arg_name in enumerate(funcdef.arg_names):
         if i < len(args):
             call_env.insert(arg_name, args[i])
         else:
             raise TypeError("Argument manquant pour la fonction.")
+    
     if funcdef.vararg:
         varargs = VList(args[len(funcdef.arg_names):])
         call_env.insert(funcdef.vararg, varargs)
     elif len(args) > len(funcdef.arg_names):
         raise TypeError("Trop d'arguments pour la fonction.")
+    
     result = VNone(value=None)
     try:
         for stmt in funcdef.body:
