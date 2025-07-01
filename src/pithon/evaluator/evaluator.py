@@ -135,13 +135,13 @@ def evaluate_stmt(node: PiStatement, env: EnvFrame) -> EnvValue:
         return _evaluate_subscript(node, env)
     
     elif isinstance(node, PiClassDef):
-        return _evaluate_class_def(node, env)
+        return VClassDef(node, env)
     
     elif isinstance(node, PiAttribute):
-        return _evaluate_attribute(node, env)
+        return VObject(node, env)
     
     elif isinstance(node, PiAttributeAssignment):
-        return _evaluate_attribute_assignment(node, env)
+        return VMethodClosure(node, env)
 
     else:
         raise TypeError(f"Type de nœud non supporté : {type(node)}")
