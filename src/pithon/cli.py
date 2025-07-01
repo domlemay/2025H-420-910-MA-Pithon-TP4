@@ -39,7 +39,10 @@ def run_file(filename, ast_only=False):
     if ast_only:
         print(tree)
         return
-    evaluate(tree, env)
+    try:
+        evaluate(tree, env)
+    except Exception as e:
+        print(f"Erreur dans le fichier {filename}: {e}")
 
 def run_tests():
     test_dir = Path("tests/fixtures/programs")
