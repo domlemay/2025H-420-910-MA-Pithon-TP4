@@ -9,58 +9,9 @@ from pithon.evaluator.envvalue import (
     EnvValue, VFunctionClosure, VClassDef, VMethodClosure, VObject, VNone, VList
 )
 
-
-def evaluate_class_def(node: PiClassDef, env: EnvFrame) -> EnvValue:
-    """Évalue une définition de classe."""
-    methods = {}
-    
-    # Traiter chaque méthode de la classe
-    for method in node.methods:
-        method_closure = VFunctionClosure(method, env)
-        methods[method.name] = method_closure
-    
-    # Créer la définition de classe
-    class_def = VClassDef(node.name, methods)
-    
-    # Stocker la classe dans l'environnement
-    env.insert(node.name, class_def)
-    
-    return VNone(value=None)
-
-
-def evaluate_attribute(node: PiAttribute, env: EnvFrame, evaluate_stmt_func) -> EnvValue:
-    """Évalue l'accès à un attribut d'un objet (obj.attr)."""
-    obj = evaluate_stmt_func(node.object, env)
-    
-    if isinstance(obj, VObject):
-        # Vérifier d'abord les attributs de l'instance
-        if node.attr in obj.attributes:
-            return obj.attributes[node.attr]
-        
-        # Ensuite vérifier les méthodes de la classe
-        if node.attr in obj.class_def.methods:
-            method = obj.class_def.methods[node.attr]
-            return VMethodClosure(method, obj)
-        
-        raise AttributeError(f"L'objet '{obj.class_def.name}' n'a pas d'attribut '{node.attr}'")
-    
-    else:
-        raise TypeError(f"L'objet de type '{type(obj).__name__}' n'a pas d'attributs")
-
-
-def evaluate_attribute_assignment(node: PiAttributeAssignment, env: EnvFrame, evaluate_stmt_func) -> EnvValue:
-    """Évalue l'assignation à un attribut d'un objet (obj.attr = value)."""
-    obj = evaluate_stmt_func(node.object, env)
-    value = evaluate_stmt_func(node.value, env)
-    
-    if isinstance(obj, VObject):
-        # Assigner l'attribut à l'instance
-        obj.attributes[node.attr] = value
-        return value
-    else:
-        raise TypeError(f"Impossible d'assigner un attribut à un objet de type '{type(obj).__name__}'")
-
-
+   # Instanciation d'une classe
+# Cette fonction est appelée lors de l'instanciation d'une classe dans le code Pithon.
+# Elle crée un nouvel objet de la classe et appelle la méthode __init__ si elle existe
 def instantiate_class(class_def: VClassDef, args: list[EnvValue], evaluate_stmt_func) -> EnvValue:
     """Instancie une classe en créant un nouvel objet."""
     # Créer une nouvelle instance de la classe
@@ -97,7 +48,62 @@ def instantiate_class(class_def: VClassDef, args: list[EnvValue], evaluate_stmt_
     
     return instance
 
+    # Évalue une définition de classe et stocke la classe dans l'environnement via le dictionnaire methods.
+# Cette fonction est appelée lors de la rencontre d'une définition de classe dans le code Pithon.
+def evaluate_class_def(node: PiClassDef, env: EnvFrame) -> EnvValue:
+    """Évalue une définition de classe."""
+    methods = {}
+    
+    # Traiter chaque méthode de la classe
+    for method in node.methods:
+        method_closure = VFunctionClosure(method, env)
+        methods[method.name] = method_closure
+    
+    # Créer la définition de classe
+    class_def = VClassDef(node.name, methods)
+    
+    # Stocker la classe dans l'environnement
+    env.insert(node.name, class_def)
+    
+    return VNone(value=None)
 
+# Évalue l'appel de fonction ou de méthode de la classe
+def evaluate_attribute(node: PiAttribute, env: EnvFrame, evaluate_stmt_func) -> EnvValue:
+    """Évalue l'accès à un attribut d'un objet (obj.attr)."""
+    obj = evaluate_stmt_func(node.object, env)
+    
+    if isinstance(obj, VObject):
+        # Vérifier d'abord les attributs de l'instance
+        if node.attr in obj.attributes:
+            return obj.attributes[node.attr]
+        
+        # Ensuite vérifier les méthodes de la classe
+        if node.attr in obj.class_def.methods:
+            method = obj.class_def.methods[node.attr]
+            return VMethodClosure(method, obj)
+        
+        raise AttributeError(f"L'objet '{obj.class_def.name}' n'a pas d'attribut '{node.attr}'")
+    
+    else:
+        raise TypeError(f"L'objet de type '{type(obj).__name__}' n'a pas d'attributs")
+
+   # Évalue l'assignation à un attribut d'un objet (obj.attr = value)
+def evaluate_attribute_assignment(node: PiAttributeAssignment, env: EnvFrame, evaluate_stmt_func) -> EnvValue:
+    """Évalue l'assignation à un attribut d'un objet (obj.attr = value)."""
+    obj = evaluate_stmt_func(node.object, env)
+    value = evaluate_stmt_func(node.value, env)
+    
+    if isinstance(obj, VObject):
+        # Assigner l'attribut à l'instance
+        obj.attributes[node.attr] = value
+        return value
+    else:
+        raise TypeError(f"Impossible d'assigner un attribut à un objet de type '{type(obj).__name__}'")
+
+ 
+
+ # Appel de méthode sur une instance d'une classe.
+# Cette fonction est appelée lors de l'appel d'une méthode sur une instance d'une classe.
 def call_method(method_closure: VMethodClosure, args: list[EnvValue], evaluate_stmt_func) -> EnvValue:
     """Appelle une méthode liée à une instance."""
     method = method_closure.function
