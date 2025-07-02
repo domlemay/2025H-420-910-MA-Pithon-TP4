@@ -108,7 +108,7 @@ def call_method(method_closure: VMethodClosure, args: list[EnvValue], evaluate_s
     call_env.insert("self", instance)
     
     # Lier les arguments (en sautant 'self' qui est déjà lié)
-    for i, arg_name in enumerate(method.funcdef.arg_names[1:]):  # Skip 'self'
+    for i, arg_name in enumerate(method.funcdef.arg_names[1:]): 
         if i < len(args):
             call_env.insert(arg_name, args[i])
         else:
