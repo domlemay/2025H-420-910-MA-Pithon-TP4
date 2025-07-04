@@ -4,7 +4,7 @@ from pithon.syntax import (
     PiAssignment, PiBinaryOperation, PiNumber, PiBool, PiVariable, PiIfThenElse,
     PiNot, PiAnd, PiOr, PiWhile, PiExpression, PiNone, PiList, PiTuple,
     PiString, PiFunctionDef, PiFunctionCall, PiFor, PiBreak, PiContinue, PiIn,
-    PiReturn, PiSubscript, PiClassDef, PiAttribute, PiAttributeAssignment
+    PiReturn, PiSubscript, PiClassDef, PiAttribute, PiAttributeAssignment, PiRaise, PiJoinedStr, PiTry, PiExceptHandler
 )
 
 class SimpleParser(ast.NodeVisitor):
@@ -152,6 +152,24 @@ class SimpleParser(ast.NodeVisitor):
         value = self.visit(node.value) if node.value else PiNone(value=None)
         return PiReturn(value=value)
 
+    def visit_Raise(self, node: ast.Raise) -> PiRaise:
+        if node.exc is None:
+            raise ValueError("L'instruction 'raise' sans exception n'est pas supportée.")
+        exception = self.visit(node.exc)
+        return PiRaise(exception=exception)
+
+    def visit_Try(self, node: ast.Try) -> PiTry:
+        body = [self.visit(stmt) for stmt in node.body]
+        handlers = []
+        
+        for handler in node.handlers:
+            exception_type = self.visit(handler.type) if handler.type else None
+            name = handler.name if handler.name else None
+            handler_body = [self.visit(stmt) for stmt in handler.body]
+            handlers.append(PiExceptHandler(exception_type=exception_type, name=name, body=handler_body))
+        
+        return PiTry(body=body, handlers=handlers)
+
     def visit_Subscript(self, node: ast.Subscript) -> PiSubscript:
         collection = self.visit(node.value)
         index = self.visit(node.slice)
@@ -200,6 +218,20 @@ class SimpleParser(ast.NodeVisitor):
         else:
             raise ValueError(f"Opérateur non pris en charge {op}.")
 
+    def visit_JoinedStr(self, node: ast.JoinedStr) -> PiJoinedStr:
+        """Visite une f-string (JoinedStr)."""
+        parts = []
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                # Partie texte littérale (Python 3.8+)
+                parts.append(PiString(part.value))
+            elif isinstance(part, ast.FormattedValue):
+                # Expression formatée
+                parts.append(self.visit(part.value))
+            else:
+                # Autre type de contenu
+                parts.append(self.visit(part))
+        return PiJoinedStr(parts=parts)
+
     def generic_visit(self, node):
         raise ValueError(f"Type de nœud AST non supporté : {type(node).__name__}")
-

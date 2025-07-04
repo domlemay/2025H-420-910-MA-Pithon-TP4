@@ -4,7 +4,7 @@ Contient les opérations arithmétiques, comparaisons et fonctions utilitaires d
 """
 
 from typing import Any, Type, TypeVar
-from pithon.evaluator.envvalue import EnvValue, VList, VNone, VTuple, VNumber, VBool, VString
+from pithon.evaluator.envvalue import EnvValue, VList, VNone, VTuple, VNumber, VBool, VString, VClassDef, VObject
 
 T = TypeVar('T')
 def check_type(obj: Any, mytype: Type[T]) -> T:
@@ -148,6 +148,23 @@ def primitive_str(args: list[EnvValue]):
     else:
         raise TypeError(f"Type non supporté pour 'str': {type(value).__name__}")
 
+def create_exception_class(name: str):
+    """Crée une classe d'exception primitive."""
+    def exception_constructor(args: list[EnvValue]):
+        # Créer un objet exception avec un attribut args
+        class_def = VClassDef(name, {})
+        instance = VObject(class_def, {})
+        
+        # Stocker les arguments dans l'attribut args
+        if args:
+            instance.attributes["args"] = VTuple(tuple(args))
+        else:
+            instance.attributes["args"] = VTuple(())
+            
+        return instance
+    
+    return exception_constructor
+
 def get_primitive_dict():
     """Retourne le dictionnaire des fonctions primitives."""
     return {
@@ -165,4 +182,10 @@ def get_primitive_dict():
         'print': primitive_print,
         'range': primitive_range,
         'str': primitive_str,
+        'ValueError': create_exception_class('ValueError'),
+        'TypeError': create_exception_class('TypeError'),
+        'RuntimeError': create_exception_class('RuntimeError'),
     }
+
+
+

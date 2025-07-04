@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class PiNone:
@@ -65,10 +66,29 @@ class PiString:
     value: str
 
 @dataclass
+class PiJoinedStr:
+    parts: list['PiExpression']
+    
+@dataclass
+class PiRaise:
+    exception: 'PiExpression'
+
+@dataclass
+class PiTry:
+    body: list['PiStatement']
+    handlers: list['PiExceptHandler']
+    
+@dataclass
+class PiExceptHandler:
+    exception_type: Optional['PiExpression']
+    name: Optional[str]
+    body: list['PiStatement']
+
+@dataclass
 class PiFunctionDef:
     name: str
     arg_names: list[str]
-    vararg: str | None
+    vararg: Optional[str]
     body: list['PiStatement']
 
 @dataclass
@@ -120,7 +140,7 @@ class PiAttributeAssignment:
     attr: str
     value: 'PiExpression'
 
-PiValue = PiNumber | PiBool | PiNone | PiList | PiTuple | PiString
+PiValue = PiNumber | PiBool | PiNone | PiList | PiTuple | PiString | PiJoinedStr
 
 PiExpression = (
     PiValue
@@ -147,6 +167,8 @@ PiStatement = (
     | PiFunctionDef
     | PiClassDef
     | PiReturn
+    | PiRaise
+    | PiTry
     | PiExpression
 )
 

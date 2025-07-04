@@ -8,7 +8,7 @@ nous allons faire ici avec un interpréteur **simple** pour Python.
 Le fichier [`clone.md`](./consignes/clone.md) dans les consignes contient les
 instructions pour cloner ce dépôt sur votre machine.
 
-## Comment démarrer l'évaluateur Python.
+## Comment démarrer l'évaluateur Python
 
 Le fichier [`install.md`](./consignes/install.md) dans les consignes contient les
-instructions pour démarrer l'évaluateur Python.
+instructions pour démarrer l'évaluateur Python. 

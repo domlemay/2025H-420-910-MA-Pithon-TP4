@@ -4,10 +4,12 @@ Contient toutes les fonctions d'évaluation liées aux classes, objets, attribut
 """
 
 from pithon.evaluator.envframe import EnvFrame
-from pithon.syntax import PiClassDef, PiAttribute, PiAttributeAssignment, PiFunctionCall
+from pithon.syntax import PiClassDef, PiAttribute, PiAttributeAssignment, PiFunctionCall # a la place de PiFunctionCall, j'ai utiliser PiAttribute pour mieux comprendre la structure et le niveau de parallelisme avec les fonctions hors des classes.
 from pithon.evaluator.envvalue import (
     EnvValue, VFunctionClosure, VClassDef, VMethodClosure, VObject, VNone, VList
 )
+#J'ai utiliser method pour mieux comprendre la structure et le niveau de parallelisme avec les fonctions hors des classes.
+
 
    # Instanciation d'une classe
 # Cette fonction est appelée lors de l'instanciation d'une classe dans le code Pithon.
@@ -44,9 +46,9 @@ def instantiate_class(class_def: VClassDef, args: list[EnvValue], evaluate_stmt_
             if e.__class__.__name__ == 'ReturnException':
                 pass  # __init__ ne retourne rien d'utile
             else:
-                raise
+                raise TypeError(f"Erreur lors de l'appel de __init__: {str(e)}")
     
-    return instance
+    return instance  # Retourne l'instance créée
 
     # Évalue une définition de classe et stocke la classe dans l'environnement via le dictionnaire methods.
 # Cette fonction est appelée lors de la rencontre d'une définition de classe dans le code Pithon.
@@ -137,5 +139,5 @@ def call_method(method_closure: VMethodClosure, args: list[EnvValue], evaluate_s
         if e.__class__.__name__ == 'ReturnException':
             return e.value
         else:
-            raise
+            raise TypeError(f"Erreur lors de l'appel de la méthode '{method.funcdef.name}': {str(e)}")
     return result

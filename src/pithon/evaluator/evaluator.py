@@ -3,7 +3,7 @@ from pithon.evaluator.primitive import check_type, get_primitive_dict
 from pithon.syntax import (
     PiAssignment, PiBinaryOperation, PiNumber, PiBool, PiStatement, PiProgram, PiSubscript, PiVariable,
     PiIfThenElse, PiNot, PiAnd, PiOr, PiWhile, PiNone, PiList, PiTuple, PiString,
-    PiFunctionDef, PiFunctionCall, PiFor, PiBreak, PiContinue, PiIn, PiReturn, PiClassDef, PiAttribute, PiAttributeAssignment
+    PiFunctionDef, PiFunctionCall, PiFor, PiBreak, PiContinue, PiIn, PiReturn, PiClassDef, PiAttribute, PiAttributeAssignment, PiRaise, PiJoinedStr, PiTry, PiExceptHandler
 )
 from pithon.evaluator.envvalue import EnvValue, VFunctionClosure, VList, VNone, VTuple, VNumber, VBool, VString, VClassDef, VMethodClosure, VObject
 from pithon.evaluator.class_evaluator import (
@@ -52,6 +52,24 @@ def evaluate_stmt(node: PiStatement, env: EnvFrame) -> EnvValue:
 
     elif isinstance(node, PiString):
         return VString(node.value)
+
+    elif isinstance(node, PiJoinedStr):
+        # Évaluer et concaténer toutes les parties de la f-string
+        result = ""
+        for part in node.parts:
+            part_value = evaluate_stmt(part, env)
+            # Convertir en string
+            if isinstance(part_value, VString):
+                result += part_value.value
+            elif isinstance(part_value, VNumber):
+                result += str(part_value.value)
+            elif isinstance(part_value, VBool):
+                result += str(part_value.value)
+            elif isinstance(part_value, VNone):
+                result += "None"
+            else:
+                result += str(part_value)
+        return VString(result)
 
     elif isinstance(node, PiList):
         elements = [evaluate_stmt(e, env) for e in node.elements]
@@ -146,6 +164,22 @@ def evaluate_stmt(node: PiStatement, env: EnvFrame) -> EnvValue:
     
     elif isinstance(node, PiAttributeAssignment):
         return evaluate_attribute_assignment(node, env, evaluate_stmt)
+
+    elif isinstance(node, PiRaise):
+        exception_value = evaluate_stmt(node.exception, env)
+        # Pour l'instant, on lève une RuntimeError avec le message de l'exception
+        if isinstance(exception_value, VObject):
+            # Si c'est un objet exception, essayer de récupérer son message
+            if "args" in exception_value.attributes and isinstance(exception_value.attributes["args"], VTuple):
+                args = exception_value.attributes["args"].value
+                if args and isinstance(args[0], VString):
+                    raise PiException(exception_value.class_def.name, args[0].value, exception_value)
+            raise PiException(exception_value.class_def.name, f"Exception {exception_value.class_def.name}", exception_value)
+        else:
+            raise PiException("RuntimeError", str(exception_value), None)
+
+    elif isinstance(node, PiTry):
+        return _evaluate_try(node, env)
 
     else:
         raise TypeError(f"Type de nœud non supporté : {type(node)}")
@@ -262,6 +296,56 @@ def _evaluate_function_call(node: PiFunctionCall, env: EnvFrame) -> EnvValue:
             result = evaluate_stmt(stmt, call_env)
     except ReturnException as ret:
         return ret.value
+    return result
+
+class PiException(Exception):
+    """Exception pour gérer les exceptions Pithon."""
+    def __init__(self, exception_type: str, message: str, exception_object):
+        self.exception_type = exception_type
+        self.message = message
+        self.exception_object = exception_object
+        super().__init__(message)
+
+def _evaluate_try(node: PiTry, env: EnvFrame) -> EnvValue:
+    """Évalue un bloc try/except."""
+    result = VNone(value=None)
+    
+    try:
+        # Exécuter le bloc try
+        for stmt in node.body:
+            result = evaluate_stmt(stmt, env)
+    except PiException as e:
+        # Gérer les exceptions Pithon
+        handled = False
+        for handler in node.handlers:
+            if handler.exception_type is None:
+                # Gestionnaire générique (except:)
+                handled = True
+            else:
+                # Vérifier si le type d'exception correspond
+                handler_type = evaluate_stmt(handler.exception_type, env)
+                if isinstance(handler_type, VClassDef) and handler_type.name == e.exception_type:
+                    handled = True
+                elif callable(handler_type) and hasattr(handler_type, '__name__') and handler_type.__name__ == e.exception_type:
+                    handled = True
+            
+            if handled:
+                # Créer un nouvel environnement pour le gestionnaire
+                handler_env = EnvFrame(parent=env)
+                
+                # Lier la variable d'exception si spécifiée
+                if handler.name and e.exception_object:
+                    handler_env.insert(handler.name, e.exception_object)
+                
+                # Exécuter le gestionnaire
+                for stmt in handler.body:
+                    result = evaluate_stmt(stmt, handler_env)
+                break
+        
+        if not handled:
+            # Re-lever l'exception si elle n'est pas gérée
+            raise
+    
     return result
 
 class ReturnException(Exception):
